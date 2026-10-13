@@ -11,6 +11,18 @@ import os
 import sys
 
 
+def find_browser_executable() -> str:
+    """Use an installed browser when Playwright's managed Chromium is unavailable."""
+    candidates = [
+        os.environ.get("PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH", ""),
+        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+        r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+        r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+    ]
+    return next((path for path in candidates if path and os.path.isfile(path)), "")
+
+
 def bake_html_to_json(
     html_content: str,
     width: int = 1920,
@@ -233,7 +245,11 @@ window.__BAKE_RESULT__ = result;
 </body></html>"""
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        executable_path = find_browser_executable()
+        launch_options = {"headless": True}
+        if executable_path:
+            launch_options["executable_path"] = executable_path
+        browser = p.chromium.launch(**launch_options)
         page = browser.new_page(viewport={"width": width + 100, "height": height + 100})
         page.set_content(full_html, wait_until="networkidle")
         page.wait_for_timeout(250)

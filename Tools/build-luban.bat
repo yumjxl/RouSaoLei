@@ -1,13 +1,14 @@
 @echo off
 setlocal
+pushd "%~dp0"
 
 set LUBAN_REPO=https://github.com/focus-creative-games/luban.git
-set LUBAN_DIR=..\..\luban
+set LUBAN_DIR=%CD%\LubanSource
 
 :: Step 1: Check if luban source directory exists
 if not exist "%LUBAN_DIR%\.git" (
     echo [INFO] Luban source not found, cloning from %LUBAN_REPO% ...
-    git clone %LUBAN_REPO% %LUBAN_DIR%
+    git clone --depth 1 %LUBAN_REPO% %LUBAN_DIR%
     if errorlevel 1 (
         echo [ERROR] Git clone failed!
         pause
@@ -36,13 +37,17 @@ if not exist "%LUBAN_DIR%\.git" (
     popd
 )
 
-:: Step 3: Clean previous build output
-if exist Luban (
-    rd /s /q Luban
-)
-
-:: Step 4: Build
+:: Step 3: Build (overwrite matching outputs and preserve tracked documentation)
 echo [INFO] Building Luban ...
 dotnet build %LUBAN_DIR%\src\Luban\Luban.csproj -c Release -o Luban
 
-pause
+if errorlevel 1 (
+    echo [ERROR] Luban build failed!
+    popd
+    if not defined AI_MODE pause
+    exit /b 1
+)
+
+echo [INFO] Luban build completed: %CD%\Luban\Luban.dll
+popd
+if not defined AI_MODE pause

@@ -128,6 +128,28 @@ namespace HtmlToUGUI
             GetWindow<HtmlToUGUIBaker>("UI 原型烘焙器");
         }
 
+        /// <summary>让项目自动化脚本复用窗口中的同一套 JSON v2 烘焙逻辑。</summary>
+        public static GameObject BakeAssetToCanvas(TextAsset json, Canvas canvas)
+        {
+            if (json == null) throw new ArgumentNullException(nameof(json));
+            if (canvas == null) throw new ArgumentNullException(nameof(canvas));
+
+            HtmlToUGUIBaker baker = CreateInstance<HtmlToUGUIBaker>();
+            baker.currentMode = InputMode.FileAsset;
+            baker.jsonAsset = json;
+            baker.targetCanvas = canvas;
+            baker.autoFindCanvas = false;
+            baker.selectGeneratedRoot = false;
+            baker.clearSameNameBeforeBake = true;
+            baker.useScriptGeneratorNaming = false;
+            baker.useLegacyText = false;
+            UIDataNode root = JsonConvert.DeserializeObject<UIDataNode>(json.text);
+            baker.ExecuteBake();
+            GameObject result = root == null ? null : canvas.transform.Find(root.name)?.gameObject;
+            DestroyImmediate(baker);
+            return result;
+        }
+
         private void OnEnable()
         {
             converterUrl = EditorPrefs.GetString(PREFS_URL_KEY, "");

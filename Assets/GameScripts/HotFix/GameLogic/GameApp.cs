@@ -35,8 +35,8 @@ public partial class GameApp
     
     private static void StartGameLogic()
     {
-        // GameEvent.Get<ILoginUI>().ShowLoginUI();
-        GameModule.UI.ShowUIAsync<BattleMainUI>();
+        ConfigSystem.Instance.Load();
+        GameModule.UI.ShowUIAsync<GameLogic.LeiPaiMainUI>();
     }
     
     private static void Release()
