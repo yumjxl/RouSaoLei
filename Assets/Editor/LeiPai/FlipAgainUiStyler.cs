@@ -41,6 +41,7 @@ public static class FlipAgainUiStyler
         {
             foreach (var image in root.GetComponentsInChildren<Image>(true))
             {
+                if (!card) continue;
                 bool button = image.GetComponent<Button>() != null;
                 image.color = button ? new Color(.88f, .92f, .85f) : new Color(.97f, .95f, .90f);
                 if (image.transform == root.transform) image.color = new Color(.95f, .93f, .87f);
@@ -59,6 +60,17 @@ public static class FlipAgainUiStyler
                 text.text = text.text.Replace("雷牌", "再翻一张");
             }
             if (card) AddArtwork(root);
+            else
+            {
+                // Prefab preview scenes can leave an overlay Canvas with a zero-sized root.
+                // Restore the window transform immediately before serializing it.
+                var rect = root.GetComponent<RectTransform>();
+                rect.localScale = Vector3.one;
+                rect.anchorMin = Vector2.zero;
+                rect.anchorMax = Vector2.one;
+                rect.pivot = new Vector2(.5f, .5f);
+                rect.offsetMin = rect.offsetMax = Vector2.zero;
+            }
             PrefabUtility.SaveAsPrefabAsset(root, path);
         }
         finally { PrefabUtility.UnloadPrefabContents(root); }

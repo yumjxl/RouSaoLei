@@ -25,9 +25,10 @@ public static class LeiPaiUiPrefabBuilder
             TMP_Text sampleText = prefab == null ? null : prefab.GetComponentInChildren<TMP_Text>(true);
             LoopGridView grid = prefab == null ? null : prefab.GetComponentInChildren<LoopGridView>(true);
             GameObject cardPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(CardPrefabPath);
-            if (prefab != null && (prefab.GetComponent<Canvas>() == null || chineseFont == null || sampleText == null
+            if (prefab == null || prefab.GetComponent<Canvas>() == null || chineseFont == null || sampleText == null
                                    || sampleText.font != chineseFont || grid == null || cardPrefab == null
-                                   || prefab.transform.localScale != Vector3.one))
+                                   || prefab.transform.localScale != Vector3.one
+                                   || File.GetLastWriteTimeUtc(JsonPath) > File.GetLastWriteTimeUtc(PrefabPath))
                 Rebuild();
         };
     }
@@ -59,6 +60,7 @@ public static class LeiPaiUiPrefabBuilder
         PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
         Object.DestroyImmediate(root);
         Object.DestroyImmediate(canvasObject);
+        FlipAgainUiStyler.Apply();
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
         Debug.Log($"[LeiPai] UI Prefab 已生成: {PrefabPath}");
@@ -147,7 +149,7 @@ public static class LeiPaiUiPrefabBuilder
         GameObject gridObject = gridTransform.gameObject;
         ScrollRect scroll = gridObject.GetComponent<ScrollRect>() ?? gridObject.AddComponent<ScrollRect>();
         scroll.horizontal = false;
-        scroll.vertical = false;
+        scroll.vertical = true;
         scroll.inertia = false;
         scroll.viewport = gridTransform as RectTransform;
         if (gridObject.GetComponent<RectMask2D>() == null) gridObject.AddComponent<RectMask2D>();

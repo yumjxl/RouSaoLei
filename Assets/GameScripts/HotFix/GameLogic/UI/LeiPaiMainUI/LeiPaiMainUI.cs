@@ -27,7 +27,9 @@ namespace GameLogic
         private TMP_Text _charge;
         private TMP_Text _core;
         private TMP_Text _log;
+        private TMP_Text _lastTotal;
         private TMP_Text _hint;
+        private RectTransform _scoreProgressFill;
         private LoopGridView _boardGrid;
         private Button _scoutMode;
         private Button _retry;
@@ -51,9 +53,11 @@ namespace GameLogic
             _charge = FindChildComponent<TMP_Text>("m_go_SidePanel/m_go_DeckInfo/m_go_ChargeRow/m_tmp_Charge");
             _core = FindChildComponent<TMP_Text>("m_go_SidePanel/m_go_DeckInfo/m_go_CoreRow/m_tmp_Core");
             _log = FindChildComponent<TMP_Text>("m_go_SidePanel/m_go_LogSection/m_tmp_Log");
+            _lastTotal = FindChildComponent<TMP_Text>("m_go_SidePanel/m_go_LogSection/m_tmp_LastTotal");
             _hint = FindChildComponent<TMP_Text>("m_go_BoardPanel/m_go_BoardHeader/m_tmp_Hint");
+            _scoreProgressFill = FindChildComponent<RectTransform>("m_go_TopBar/m_go_ScoreStat/m_go_ScoreProgress/m_go_ScoreProgressFill");
             _scoutMode = FindChildComponent<Button>("m_go_SidePanel/m_btn_ScoutMode");
-            _retry = FindChildComponent<Button>("m_go_SidePanel/m_btn_Retry");
+            _retry = FindChildComponent<Button>("m_go_SidePanel/m_go_TipSection/m_btn_Retry");
             _rewardPanel = FindChild("m_go_RewardPanel").gameObject;
             _boardGrid = FindChildComponent<LoopGridView>("m_go_BoardPanel/m_grid_Board");
             for (int i = 0; i < _rewards.Length; i++)
@@ -73,6 +77,9 @@ namespace GameLogic
 
         protected override void OnCreate()
         {
+            // Recover old window assets saved with zero scale by a Canvas preview scene.
+            rectTransform.localScale = Vector3.one;
+            Canvas.ForceUpdateCanvases();
             _animationCts = new CancellationTokenSource();
             ConfigSystem.Instance.Load();
             _catalog = LeiPaiLubanCardCatalog.Load();
@@ -217,6 +224,7 @@ namespace GameLogic
                 {
                     if (result.Card.IsCore()) PlayStyle(LeiPaiPresentationProfile.Get(LeiPaiContributionKind.Core));
                     _log.text = $"{result.Card?.Config.Name ?? "侦察"}：操作成功。";
+                    _lastTotal.text = "总计　0";
                     await UniTask.Delay(180, cancellationToken: token);
                 }
                 else
@@ -234,6 +242,7 @@ namespace GameLogic
                         await PulseContribution(sourceIndex, contribution, token);
                         await UniTask.Delay(140, cancellationToken: token);
                     }
+                    _lastTotal.text = $"总计　{(result.ScoreDelta >= 0 ? "+" : string.Empty)}{result.ScoreDelta}";
                 }
 
                 RefreshView();
@@ -269,7 +278,7 @@ namespace GameLogic
             }
             _isScoutMode = !_isScoutMode;
             PlayCue(LeiPaiUiCue.Scout);
-            SetButtonText(_scoutMode, _isScoutMode ? "关闭侦察模式" : "开启侦察模式");
+            SetButtonText(_scoutMode, _isScoutMode ? "关闭侦察" : $"侦察 { _run.CurrentGame.RemainingScouts } 次");
             _log.text = _isScoutMode ? "侦察模式：点击未翻卡查看身份；点击混合线索可拆分。" : "已返回翻牌模式。";
             UpdateModeHint();
         }
@@ -285,7 +294,7 @@ namespace GameLogic
             if (_run.AwaitingReward || _run.IsComplete) return;
             _runRules.RetryCurrentBoard(_run);
             _isScoutMode = false;
-            SetButtonText(_scoutMode, "开启侦察模式");
+            SetButtonText(_scoutMode, $"侦察 { _run.CurrentGame.RemainingScouts } 次");
             _log.text = "已按相同种子重置，卡牌布局保持不变。";
             RefreshView();
             UpdateModeHint();
@@ -298,7 +307,7 @@ namespace GameLogic
             _rewardChoices = Array.Empty<int>();
             _run = _runRules.StartNewRun(Environment.TickCount);
             _rewardPanel.SetActive(false);
-            SetButtonText(_scoutMode, "开启侦察模式");
+            SetButtonText(_scoutMode, $"侦察 { _run.CurrentGame.RemainingScouts } 次");
             SetButtonText(_retry, "重试当前牌局");
             _log.text = "随机三关远征开始。利用线索、标记和侦察，在回合耗尽前达到目标分。";
             RefreshView();
@@ -342,9 +351,16 @@ namespace GameLogic
             _turn.text = game.RemainingTurns.ToString();
             _shield.text = game.Shield.ToString();
             _scout.text = game.RemainingScouts.ToString();
-            _remain.text = FormatRemainingComposition(game);
-            _charge.text = game.ChargedScore.ToString();
-            _core.text = game.ActiveCores.Count.ToString();
+            _remain.text = game.ActiveCores.Count == 0 ? "等待激活" : game.ActiveCores[0].Card.Config.Name;
+            _charge.text = $"蓄能 {game.ChargedScore}";
+            _core.text = $"核心 {game.ActiveCores.Count}";
+            SetButtonText(_scoutMode, _isScoutMode ? "关闭侦察" : $"侦察 {game.RemainingScouts} 次");
+            if (_scoreProgressFill != null)
+            {
+                float progress = game.Config.TargetScore <= 0 ? 0f : Mathf.Clamp01(game.Score / (float)game.Config.TargetScore);
+                _scoreProgressFill.pivot = new Vector2(0f, 0.5f);
+                _scoreProgressFill.localScale = new Vector3(progress, 1f, 1f);
+            }
             _boardGrid.RefreshAllShownItem();
         }
 
@@ -414,7 +430,7 @@ namespace GameLogic
             if (previousStep == 2 && _tutorial.Step == 3)
             {
                 _isScoutMode = false;
-                SetButtonText(_scoutMode, "开启侦察模式");
+                SetButtonText(_scoutMode, $"侦察 {_run.CurrentGame.RemainingScouts} 次");
             }
             SetButtonText(_retry, _tutorial.PrimaryButtonText);
             _log.text += "\n\n" + _tutorial.Prompt();
